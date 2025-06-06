@@ -1,0 +1,417 @@
+# Documentação de Requisitos do Backend - Sistema MRP2
+# Sistema de Gerenciamento de Recursos de Manufatura (Manufacturing Resource Planning)
+
+## 1. Autenticação e Autorização
+
+### 1.1 Tipos de Usuário
+# Cada tipo de usuário tem acesso a funcionalidades específicas do sistema
+- Administrador (role: 'admin') # Acesso total ao sistema, incluindo configurações e relatórios
+- Funcionário (role: 'employee') # Acesso às funcionalidades básicas de produção e qualidade
+- Manutenção (role: 'maintenance') # Acesso específico ao módulo de manutenção
+
+### 1.2 Endpoints de Autenticação
+# Sistema de autenticação baseado em JWT com refresh token
+```
+POST /api/auth/login
+# Autenticação inicial do usuário
+Request:
+{
+    "email": string,     # Email corporativo do usuário
+    "password": string   # Senha com mínimo de 8 caracteres, incluindo números e caracteres especiais
+}
+Response:
+{
+    "token": string,     # JWT token válido por 24 horas
+    "user": {
+        "id": string,    # UUID v4
+        "name": string,  # Nome completo do usuário
+        "email": string, # Email corporativo
+        "role": "admin" | "employee" | "maintenance"  # Perfil de acesso
+    }
+}
+
+# Também será necessário implementar:
+POST /api/auth/refresh-token  # Para renovar o token
+POST /api/auth/logout        # Para invalidar o token atual
+POST /api/auth/reset-password # Para processo de recuperação de senha
+```
+
+## 2. Rotas e Permissões
+
+### 2.1 Rotas do Administrador
+# Rotas acessíveis apenas para usuários com role: 'admin'
+- /admin-home (Dashboard Administrativo) # Visão geral de todos os indicadores
+- /planning (Planejamento) # Gestão de produção e recursos
+- /teams-management (Gestão de Equipes) # Gerenciamento de equipes e funcionários
+- /inventory (Inventário) # Controle de estoque e materiais
+- /quality-admin (Administração da Qualidade) # Gestão de qualidade e relatórios
+- /financial (Financeiro) # Gestão financeira e relatórios
+- /maintenance (Gestão de Manutenção) # Visão geral das manutenções
+- /settings (Configurações) # Configurações do sistema
+
+### 2.2 Rotas do Funcionário
+# Rotas acessíveis para usuários com role: 'employee'
+- /employee-home (Dashboard do Funcionário) # Visão das tarefas e indicadores pessoais
+- /employee (Produção) # Registro e acompanhamento de produção
+- /quality-register (Registro de Qualidade) # Registro de controle de qualidade
+
+### 2.3 Rotas de Manutenção
+# Rotas acessíveis para usuários com role: 'maintenance'
+- /maintenance-home (Dashboard de Manutenção) # Visão geral das ordens de serviço
+- /maintenance-requests (Pedidos de Manutenção) # Gestão de pedidos de manutenção
+
+## 3. Requisitos por Página
+
+### 3.1 Dashboard Administrativo (/admin-home)
+# Endpoint principal para dados do dashboard administrativo
+Endpoints necessários:
+```
+GET /api/admin/dashboard
+# Retorna todos os indicadores principais do sistema
+Response:
+{
+    "totalEmployees": number,            # Total de funcionários ativos
+    "activeProjects": number,            # Projetos em andamento
+    "pendingMaintenanceRequests": number, # Pedidos de manutenção pendentes
+    "qualityIssues": number,             # Problemas de qualidade em aberto
+    "recentActivities": [                # Últimas 10 atividades do sistema
+        {
+            "id": string,                # UUID v4
+            "type": string,              # Tipo da atividade (produção, manutenção, qualidade)
+            "description": string,        # Descrição detalhada da atividade
+            "date": string,              # Data e hora no formato ISO
+            "status": string             # Status atual da atividade
+        }
+    ],
+    "productionMetrics": {               # Métricas de produção
+        "daily": number,                 # Produção do dia atual
+        "weekly": number,                # Produção da semana atual
+        "monthly": number                # Produção do mês atual
+    }
+}
+```
+
+### 3.2 Gestão de Equipes (/teams-management)
+# Sistema completo de gerenciamento de equipes
+Endpoints necessários:
+```
+GET /api/admin/teams
+# Lista de todas as equipes
+Response:
+{
+    "teams": [
+        {
+            "id": string,            # UUID v4
+            "name": string,          # Nome da equipe
+            "type": string,          # Tipo da equipe (produção/manutenção)
+            "members": [             # Lista de membros da equipe
+                {
+                    "id": string,    # UUID v4 do funcionário
+                    "name": string   # Nome completo do membro
+                }
+            ],
+            "tools": [               # Lista de ferramentas da equipe
+                string
+            ],
+            "procedures": [          # Lista de procedimentos da equipe
+                string
+            ],
+            "metrics": {             # Métricas de produtividade
+                "daily": number,     # Produção do dia atual
+                "weekly": number,    # Produção da semana atual
+                "monthly": number    # Produção do mês atual
+            }
+        }
+    ]
+}
+
+POST /api/admin/teams
+# Criação de novas equipes
+Request:
+{
+    "name": string,          # Nome da equipe
+    "type": string,          # Tipo da equipe (produção/manutenção)
+    "members": [             # Lista de membros da equipe
+        string
+    ],
+    "tools": [                # Lista de ferramentas da equipe
+        string
+    ],
+    "procedures": [           # Lista de procedimentos da equipe
+        string
+    ]
+}
+
+PUT /api/admin/teams/:id
+# Atualização de equipes existentes
+Request:
+{
+    "name": string,          # Novo nome da equipe
+    "type": string,          # Novo tipo da equipe (produção/manutenção)
+    "members": [             # Nova lista de membros da equipe
+        string
+    ],
+    "tools": [                # Nova lista de ferramentas da equipe
+        string
+    ],
+    "procedures": [           # Novo lista de procedimentos da equipe
+        string
+    ]
+}
+
+DELETE /api/admin/teams/:id
+# Remove equipe (apenas se não houver membros)
+```
+
+### 3.3 Manutenção (/maintenance-requests)
+# Sistema de gerenciamento de manutenção
+Endpoints necessários:
+```
+GET /api/maintenance/requests
+# Lista completa de solicitações
+Response:
+{
+    "requests": [
+        {
+            "id": string,              # UUID v4
+            "equipment": string,       # Identificador do equipamento
+            "description": string,     # Descrição detalhada do problema
+            "priority": "high" | "medium" | "low", # Prioridade do pedido
+            "status": "pending" | "in_progress" | "completed", # Estado atual
+            "requestedBy": {           # Solicitante
+                "id": string,          # UUID v4 do funcionário
+                "name": string         # Nome do solicitante
+            },
+            "assignedTo": {            # Responsável pela manutenção
+                "id": string,          # UUID v4 do técnico
+                "name": string         # Nome do técnico
+            },
+            "createdAt": string,       # Data de criação (ISO)
+            "updatedAt": string,       # Data da última atualização (ISO)
+            "completedAt": string,     # Data de conclusão (ISO)
+            "department": string       # Departamento associado
+        }
+    ]
+}
+
+POST /api/maintenance/requests
+# Criação de solicitações de manutenção
+Request:
+{
+    "equipment": string,       # Identificador do equipamento
+    "description": string,     # Descrição detalhada do problema
+    "priority": "high" | "medium" | "low", # Prioridade do pedido
+    "department": string       # Departamento associado
+}
+
+PUT /api/maintenance/requests/:id
+# Atualização de status de pedidos
+Request:
+{
+    "status": "pending" | "in_progress" | "completed", # Novo estado do pedido
+    "assignedTo": string,    # Novo responsável pela manutenção
+    "completedAt": string,   # Nova data de conclusão (ISO)
+    "notes": string           # Novas notas e observações
+}
+
+DELETE /api/maintenance/requests/:id
+# Cancela pedido (se ainda pendente)
+```
+
+### 3.4 Inventário (/inventory)
+# Sistema de controle de estoque
+Endpoints necessários:
+```
+GET /api/inventory            # Lista todos os itens (com paginação)
+POST /api/inventory           # Adiciona novo item
+PUT /api/inventory/:id        # Atualiza item existente
+DELETE /api/inventory/:id     # Remove item (se permitido)
+
+Modelo de Item:
+{
+    "id": string,            # UUID v4
+    "name": string,          # Nome do item
+    "category": string,      # Categoria do item
+    "quantity": number,      # Quantidade atual
+    "minQuantity": number,   # Quantidade mínima (para alertas)
+    "unit": string,          # Unidade de medida
+    "location": string,      # Localização no estoque
+    "supplier": {            # Fornecedor principal
+        "id": string,        # UUID v4 do fornecedor
+        "name": string       # Nome do fornecedor
+    },
+    "lastUpdated": string,   # Data da última atualização (ISO)
+    "status": "available" | "low_stock" | "out_of_stock" # Estado atual
+}
+
+# Endpoints adicionais necessários:
+POST /api/inventory/:id/adjust # Ajuste de quantidade
+GET /api/inventory/low-stock   # Itens com estoque baixo
+GET /api/inventory/movements   # Histórico de movimentações
+```
+
+### 3.5 Qualidade (/quality-admin, /quality-register)
+# Sistema de controle de qualidade
+Endpoints necessários:
+```
+GET /api/quality/reports     # Lista todos os relatórios
+POST /api/quality/reports    # Cria novo relatório
+PUT /api/quality/reports/:id # Atualiza relatório existente
+
+Modelo de Relatório de Qualidade:
+{
+    "id": string,           # UUID v4
+    "productId": string,    # ID do produto avaliado
+    "batchNumber": string,  # Número do lote
+    "inspectedBy": {        # Inspetor responsável
+        "id": string,       # UUID v4 do funcionário
+        "name": string      # Nome do inspetor
+    },
+    "date": string,         # Data da inspeção (ISO)
+    "parameters": [         # Parâmetros avaliados
+        {
+            "name": string,   # Nome do parâmetro
+            "value": number,  # Valor medido
+            "unit": string,   # Unidade de medida
+            "status": "approved" | "rejected" # Resultado
+        }
+    ],
+    "observations": string,  # Observações adicionais
+    "status": "approved" | "rejected", # Resultado final
+    "attachments": [        # Documentos anexos
+        {
+            "id": string,   # UUID v4 do arquivo
+            "url": string,  # URL do arquivo
+            "type": string  # Tipo do arquivo
+        }
+    ]
+}
+
+# Endpoints adicionais necessários:
+GET /api/quality/parameters  # Lista parâmetros padrão
+GET /api/quality/statistics # Relatórios estatísticos
+POST /api/quality/reports/:id/attachments # Upload de anexos
+```
+
+### 3.6 Financeiro (/financial)
+# Sistema de gestão financeira
+Endpoints necessários:
+```
+GET /api/admin/financial
+# Relatórios financeiros
+Response:
+{
+    "totalIncome": number,            # Total de receitas
+    "totalExpense": number,           # Total de despesas
+    "maintenanceCosts": number,        # Custos de manutenção
+    "budget": number,                  # Orçamento total
+    "transactions": [                  # Lista de transações
+        {
+            "id": string,               # UUID v4
+            "type": "income" | "expense", # Tipo da transação
+            "category": string,         # Categoria (folha, materiais, etc)
+            "amount": number,           # Valor (sempre positivo)
+            "date": string,             # Data da transação (ISO)
+            "description": string,       # Descrição detalhada
+            "status": "pending" | "completed", # Estado atual
+            "attachments": [            # Documentos comprobatórios
+                {
+                    "id": string,       # UUID v4 do arquivo
+                    "url": string,      # URL do arquivo
+                    "type": string      # Tipo do arquivo (nota fiscal, recibo, etc)
+                }
+            ]
+        }
+    ]
+}
+
+# Endpoints adicionais necessários:
+GET /api/financial/dashboard    # Resumo financeiro
+GET /api/financial/categories   # Lista de categorias
+POST /api/financial/budgets    # Gestão de orçamentos
+```
+
+## 4. Requisitos Técnicos
+
+### 4.1 Formato de Respostas
+# Padronização de respostas da API
+```
+{
+    "success": boolean,        # Indica se a requisição foi bem-sucedida
+    "data": any,              # Dados da resposta (null em caso de erro)
+    "error": string | null,   # Mensagem de erro (null em caso de sucesso)
+    "pagination?: {           # Informações de paginação (opcional)
+        "page": number,       # Página atual
+        "limit": number,      # Itens por página
+        "total": number,      # Total de itens
+        "totalPages": number  # Total de páginas
+    }
+}
+```
+
+### 4.2 Autenticação
+# Configurações de segurança para autenticação
+- Usar JWT (JSON Web Token)
+- Tokens devem expirar em 24 horas
+- Implementar refresh token com validade de 7 dias
+- Armazenar tokens em whitelist/blacklist para controle de sessão
+- Implementar rate limiting para tentativas de login
+
+### 4.3 Validações
+# Regras de validação de dados
+- Validar todos os inputs antes de processar
+- Retornar mensagens de erro claras e em português
+- Implementar rate limiting para prevenir abusos
+- Validar tipos de dados e formatos (email, datas, números)
+- Sanitizar inputs para prevenir XSS
+
+### 4.4 Segurança
+# Medidas de segurança necessárias
+- Implementar CORS com origens permitidas configuráveis
+- Usar HTTPS em todos os ambientes
+- Sanitizar todos os inputs contra injeção
+- Implementar proteção contra SQL Injection
+- Implementar logs de auditoria para ações críticas
+- Usar hash para senhas (bcrypt ou similar)
+- Implementar proteção contra CSRF
+
+### 4.5 Performance
+# Otimizações de performance
+- Implementar cache (Redis recomendado)
+- Paginar todas as listagens (máximo 50 itens por página)
+- Limitar tamanho de uploads (máximo 10MB por arquivo)
+- Otimizar queries do banco de dados
+- Implementar índices apropriados
+- Usar compressão gzip/brotli
+
+## 5. Integrações Necessárias
+
+### 5.1 Serviços de Email
+# Sistema de notificações por email
+- Envio de notificações para pedidos de manutenção
+- Alertas de baixo estoque (diário)
+- Relatórios diários/semanais de produção
+- Notificações de problemas de qualidade
+- Recuperação de senha
+- Usar serviço de email confiável (SendGrid, AWS SES)
+
+### 5.2 Armazenamento de Arquivos
+# Sistema de armazenamento de arquivos
+- Implementar integração com serviço de storage (S3 ou similar)
+- Suportar upload de imagens e documentos
+- Definir limites:
+  * Tamanho máximo: 10MB por arquivo
+  * Tipos permitidos: jpg, png, pdf, xlsx, docx
+  * Total por usuário: 1GB
+- Implementar scan de vírus
+- Backup automático
+
+## 6. Observações Importantes
+
+1. Todos os endpoints devem ser versionados (ex: /api/v1/...) # Facilita atualizações futuras
+2. Implementar logs detalhados para debugging # Usar Winston ou similar
+3. Documentar todos os endpoints usando Swagger/OpenAPI # Manter documentação sempre atualizada
+4. Implementar testes automatizados # Mínimo 80% de cobertura
+5. Considerar websockets para atualizações em tempo real # Socket.io recomendado
+6. Backup regular do banco de dados # Diário com retenção de 30 dias
+7. Plano de recuperação de desastres # RPO 24h, RTO 4h 
