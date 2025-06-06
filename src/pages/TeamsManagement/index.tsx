@@ -77,7 +77,7 @@ const GerenciamentoEquipes: React.FC = () => {
         try {
             setLoading(true);
             const response = await equipeService.getAll();
-            setEquipes(response.data);
+            setEquipes(Array.isArray(response.data) ? response.data : []);
         } catch (error) {
             console.error('Erro ao carregar equipes:', error);
             setSnackbar({
@@ -85,6 +85,7 @@ const GerenciamentoEquipes: React.FC = () => {
                 message: 'Erro ao carregar equipes',
                 severity: 'error'
             });
+            setEquipes([]);
         } finally {
             setLoading(false);
         }
@@ -207,7 +208,7 @@ const GerenciamentoEquipes: React.FC = () => {
                 ultimaAtividade: 'Disponível'
             };
 
-            await membroEquipeService.addMember(selectedEquipe.id, memberData);
+            await equipeService.addMembro(selectedEquipe.id, memberData);
             setSnackbar({
                 open: true,
                 message: 'Membro adicionado com sucesso',
@@ -233,7 +234,7 @@ const GerenciamentoEquipes: React.FC = () => {
     const handleRemoveMember = async (equipeId: number, memberId: number) => {
         if (window.confirm('Tem certeza que deseja remover este membro?')) {
             try {
-                await membroEquipeService.removeMember(equipeId, memberId);
+                await equipeService.removeMembro(equipeId, memberId);
                 setSnackbar({
                     open: true,
                     message: 'Membro removido com sucesso',
@@ -251,17 +252,9 @@ const GerenciamentoEquipes: React.FC = () => {
         }
     };
 
-    if (loading) {
-        return (
-            <Container sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-                <CircularProgress />
-            </Container>
-        );
-    }
-
     return (
         <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
                 <Typography variant="h4" component="h1">
                     Gerenciamento de Equipes
                 </Typography>
@@ -275,8 +268,14 @@ const GerenciamentoEquipes: React.FC = () => {
                 </Button>
             </Box>
 
+            {loading ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+                    <CircularProgress />
+                </Box>
+            ) : (
             <Grid container spacing={3}>
-                {equipes.map((equipe) => (
+                    {Array.isArray(equipes) && equipes.length > 0 ? (
+                        equipes.map((equipe) => (
                     <Grid item xs={12} md={6} key={equipe.id}>
                         <Card>
                             <CardContent>
@@ -318,7 +317,7 @@ const GerenciamentoEquipes: React.FC = () => {
                                     Membros da Equipe
                                 </Typography>
                                 <List>
-                                    {equipe.membros.map((member) => (
+                                            {Array.isArray(equipe.membros) && equipe.membros.map((member) => (
                                         <ListItem key={member.id}>
                                             <ListItemText
                                                 primary={member.nome}
@@ -359,8 +358,31 @@ const GerenciamentoEquipes: React.FC = () => {
                             </CardActions>
                         </Card>
                     </Grid>
-                ))}
+                        ))
+                    ) : (
+                        <Grid item xs={12}>
+                            <Box sx={{ textAlign: 'center', mt: 4 }}>
+                                <Typography variant="h6" color="textSecondary">
+                                    Nenhuma equipe encontrada
+                                </Typography>
+                            </Box>
+                        </Grid>
+                    )}
             </Grid>
+            )}
+
+            <Snackbar
+                open={snackbar.open}
+                autoHideDuration={6000}
+                onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
+            >
+                <Alert 
+                    onClose={() => setSnackbar(prev => ({ ...prev, open: false }))} 
+                    severity={snackbar.severity}
+                >
+                    {snackbar.message}
+                </Alert>
+            </Snackbar>
 
             <Dialog open={dialogoAberto} onClose={handleFecharDialogo} maxWidth="md" fullWidth>
                 <DialogTitle>
@@ -472,19 +494,6 @@ const GerenciamentoEquipes: React.FC = () => {
                     </Button>
                 </DialogActions>
             </Dialog>
-
-            <Snackbar
-                open={snackbar.open}
-                autoHideDuration={6000}
-                onClose={() => setSnackbar({ ...snackbar, open: false })}
-            >
-                <Alert 
-                    onClose={() => setSnackbar({ ...snackbar, open: false })} 
-                    severity={snackbar.severity}
-                >
-                    {snackbar.message}
-                </Alert>
-            </Snackbar>
         </Container>
     );
 };

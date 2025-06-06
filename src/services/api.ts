@@ -3,7 +3,12 @@ import { Equipe, MembroEquipe } from '../types/Team';
 
 // Criando uma instância do axios com configurações base
 const api = axios.create({
-    baseURL: 'http://localhost:8080/api'
+    baseURL: 'http://localhost:8080/api',
+    headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+    },
+    withCredentials: true
 });
 
 // Interceptor para adicionar o token de autenticação
@@ -13,6 +18,8 @@ api.interceptors.request.use((config) => {
         config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
+}, (error) => {
+    return Promise.reject(error);
 });
 
 // Interface para Team
@@ -172,23 +179,15 @@ export const financialService = {
 
 // Interceptor para tratar erros
 api.interceptors.response.use(
-    response => response,
-    error => {
-        if (error.response) {
-            // O servidor respondeu com um status de erro
-            const errorMessage = error.response.data || 'Erro no servidor';
-            
-            if (error.response.status === 401) {
-                // Não autorizado - redirecionar para login
-                localStorage.clear();
-                window.location.href = '/login';
-            }
-            
-            return Promise.reject(errorMessage);
+    (response) => response,
+    (error) => {
+        if (error.response?.status === 401) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = '/login';
         }
-        
-        return Promise.reject('Erro de conexão');
+        return Promise.reject(error);
     }
 );
 
-export default api; 
+export default api;
